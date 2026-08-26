@@ -1,0 +1,9 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Pixeluted/adoniscries/main/Source.lua", true))()
+for _, v in ipairs(getgc(true)) do 
+    if type(v) == "table" and rawget(v, "DTXC1") then 
+
+        hookfunction(v.DTXC1, function() return end) 
+
+    end
+
+end
