@@ -236,9 +236,9 @@ local Library
         },
 
         Folders = {
-            Directory = "scriptname",
-            Configs = "scriptname/Configs",
-            Assets = "scriptname/Assets"
+            Directory = "nyarch",
+            Configs = "nyarch/Configs",
+            Assets = "nyarch/Assets"
         },
 
         Images = { -- you're welcome to reupload the images and replace it with your own links
