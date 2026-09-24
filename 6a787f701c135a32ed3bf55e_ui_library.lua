@@ -2775,6 +2775,19 @@ local Library
             Items["MainFrame"]:MakeDraggable()
             Items["MainFrame"]:MakeResizeable(Vector2New(300, 200), Vector2New(9999, 9999))
 
+            -- 淡入淡出包装层（CanvasGroup）：开关窗口时只动画这一个 GroupTransparency，
+            -- 避免 BatchFade 对全部后代逐实例建 Tween 造成的 O(N) 卡顿
+            Items["FadeGroup"] = Instances:Create("CanvasGroup", {
+                Parent = Items["MainFrame"].Instance,
+                Name = "\0",
+                Position = UDim2New(0, 0, 0, 0),
+                Size = UDim2New(1, 0, 1, 0),
+                BackgroundTransparency = 1,
+                GroupTransparency = 0,
+                BorderSizePixel = 0,
+                BackgroundColor3 = FromRGB(255, 255, 255)
+            })
+
             Library.UIScale = Instances:Create("UIScale", {
                 Parent = Items["MainFrame"].Instance,
                 Scale = 1.0
@@ -2789,7 +2802,7 @@ local Library
             })  Items["AccentBorder"]:AddToTheme({Color = "Accent"})
             
             Items["Title"] = Instances:Create("TextLabel", {
-                Parent = Items["MainFrame"].Instance,
+                Parent = Items["FadeGroup"].Instance,
                 FontFace = Library.Font,
                 TextColor3 = FromRGB(215, 215, 215),
                 BorderColor3 = FromRGB(0, 0, 0),
@@ -2811,7 +2824,7 @@ local Library
             }):AddToTheme({Color = "Text Border"})
             
             Items["Inline"] = Instances:Create("Frame", {
-                Parent = Items["MainFrame"].Instance,
+                Parent = Items["FadeGroup"].Instance,
                 Name = "\0",
                 Position = UDim2New(0, 7, 0, 20),
                 BorderColor3 = FromRGB(27, 27, 32),
@@ -2869,31 +2882,45 @@ local Library
         local Debounce = false
 
         function Window:SetOpen(Bool)
-            if Debounce or Window.IsOpen == Bool then 
-                return 
+            if Debounce or Window.IsOpen == Bool then
+                return
             end
 
             Window.IsOpen = Bool
+            Debounce = true
 
-            Debounce = true 
+            local MainFrame = Items["MainFrame"].Instance
+            local FadeGroup = Items["FadeGroup"] and Items["FadeGroup"].Instance
 
-            if Bool then 
-                Items["MainFrame"].Instance.Visible = true
-            end
-
-            local LastTween = Library:BatchFade(Items["MainFrame"].Instance, Bool, Window.FadeSpeed)
-
-            if LastTween then
-                LastTween.Completed:Once(function()
-                    Debounce = false
-                    if not Bool then
-                        Items["MainFrame"].Instance.Visible = false
-                    end
-                end)
-            else
+            -- 兜底：没有包装层时直接切换可见性，不再走逐元素 BatchFade
+            if not FadeGroup then
+                MainFrame.Visible = Bool
                 Debounce = false
-                Items["MainFrame"].Instance.Visible = Bool
+                return
             end
+
+            if Bool then
+                MainFrame.Visible = true
+                FadeGroup.GroupTransparency = 1
+            end
+
+            -- 单个 Tween：只动画 GroupTransparency，O(1) 开销
+            local Tween = TweenService:Create(FadeGroup, TweenInfo.new(
+                Window.FadeSpeed,
+                Library.Tween.Style,
+                Library.Tween.Direction
+            ), {
+                GroupTransparency = Bool and 0 or 1
+            })
+            Tween:Play()
+
+            Tween.Completed:Once(function()
+                Debounce = false
+                if not Bool then
+                    MainFrame.Visible = false
+                    FadeGroup.GroupTransparency = 0
+                end
+            end)
         end
 
         Library:Connect(UserInputService.InputBegan, function(Input)
